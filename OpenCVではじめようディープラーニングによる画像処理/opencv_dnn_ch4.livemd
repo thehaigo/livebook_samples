@@ -1,0 +1,396 @@
+# opencv_dl_ch4
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.4.0"},
+  {:evision, "~> 0.1.16"},
+  {:kino, "~> 0.7.0"},
+  {:kino_vega_lite, "~> 0.1.6"},
+  {:exla, "~> 0.4.0"}
+])
+```
+
+## setup
+
+```elixir
+alias Evision, as: Ev
+base = "/Users/shou/livebook_samples/images/"
+test = base <> "test.jpg"
+veggie = base <> "veggie.png"
+choco = base <> "chocolates.jpg"
+
+to_img = fn mat ->
+  Ev.imencode(".png", mat) |> Kino.Image.new(:png)
+end
+```
+
+## ch4/4.1/load_image
+
+```elixir
+img = Ev.imread(test)
+
+Ev.HighGui.imshow("img", img)
+# 強制終了しないと消えないので注意
+# Ev.HighGui.waitKey(0)
+```
+
+## ch4/4.1/load_image_colab
+
+```elixir
+# skip
+```
+
+## ch4/4.1/load_image_matplot
+
+```elixir
+img = Ev.imread(test)
+
+Ev.imencode(".png", img)
+|> IO.iodata_to_binary()
+|> Kino.Image.new(:png)
+```
+
+## ch4/4.2/grayscale
+
+```elixir
+img_bgr = Ev.imread(veggie)
+```
+
+```elixir
+img_gray = Ev.cvtColor(img_bgr, Ev.cv_COLOR_BGR2GRAY())
+```
+
+## ch4/4.2/split_hsv
+
+```elixir
+img_hsv = Ev.cvtColor(img_bgr, Ev.cv_COLOR_BGR2HSV())
+```
+
+## ch4/4.2split_hsv
+
+```elixir
+[h, s, v] = Ev.split(img_hsv)
+Ev.hconcat([h, s, v])
+```
+
+## ch4/4.2/hsv_colorsspace
+
+```elixir
+img_hsv =
+  Enum.map(1..180, fn x ->
+    Enum.map(0..255, fn y ->
+      [x - 1, y, 255]
+    end)
+  end)
+  |> Nx.tensor(type: :u8)
+  |> Ev.Mat.from_nx_2d()
+  |> Ev.cvtColor(Ev.cv_COLOR_HLS2RGB())
+```
+
+## ch4/4.2/extract_blue
+
+```elixir
+img_bgr = Ev.imread(choco)
+img_hsv = Ev.cvtColor(img_bgr, Ev.cv_COLOR_BGR2HSV())
+
+[h, s, v] = Ev.split(img_hsv)
+
+h_list = Ev.Mat.to_nx(h) |> Nx.to_flat_list()
+s_list = Ev.Mat.to_nx(s) |> Nx.to_flat_list()
+
+mask =
+  Enum.zip_with([h_list, s_list], fn [hue, stu] ->
+    if 80 < hue and hue < 140 and stu < 70, do: 255, else: 0
+  end)
+  |> Nx.tensor(type: :u8)
+  |> Nx.reshape(Ev.Mat.shape(h))
+  |> Ev.Mat.from_nx()
+  |> Ev.morphologyEx(Ev.cv_MORPH_CLOSE(), Ev.Mat.ones({64, 64}, :u8))
+  |> Ev.cvtColor(Ev.cv_COLOR_GRAY2RGB())
+
+result_img = Ev.Mat.bitwise_and(img_bgr, mask)
+
+images = [
+  to_img.(Ev.cvtColor(img_bgr, Ev.cv_COLOR_BGR2RGB())),
+  to_img.(h),
+  to_img.(s),
+  to_img.(v),
+  to_img.(mask),
+  to_img.(result_img)
+]
+
+Kino.Layout.grid(images, columns: 3)
+```
+
+## ch4/4.3/thresh
+
+```elixir
+src_img =
+  Nx.iota({256}, type: :u8)
+  |> Nx.tile([256])
+  |> Nx.reshape({256, 256})
+  |> Ev.Mat.from_nx()
+
+{_, th1} = Ev.threshold(src_img, 127, 255, Ev.cv_THRESH_BINARY())
+{_, th2} = Ev.threshold(src_img, 127, 255, Ev.cv_THRESH_BINARY_INV())
+{_, th3} = Ev.threshold(src_img, 127, 255, Ev.cv_THRESH_TRUNC())
+{_, th4} = Ev.threshold(src_img, 127, 255, Ev.cv_THRESH_TOZERO())
+{_, th5} = Ev.threshold(src_img, 127, 255, Ev.cv_THRESH_TOZERO_INV())
+
+images = [
+  to_img.(src_img),
+  to_img.(th1),
+  to_img.(th2),
+  to_img.(th3),
+  to_img.(th4),
+  to_img.(th5)
+]
+
+Kino.Layout.grid(images, columns: 3, gap: 16)
+```
+
+## ch4/4.3/otsu
+
+```elixir
+src_img =
+  Ev.Mat.full({100, 500, 3}, 255, :u8)
+  |> Ev.Mat.to_nx()
+  |> Ev.Mat.from_nx_2d()
+
+src_img = Nx.tensor(Enum.map(0..(100 * 500 * 3), 255), type: :u8)
+
+colors = [
+  {50, 50, 50},
+  {50, 50, 200},
+  {50, 200, 50},
+  {50, 200, 200},
+  {200, 50, 50},
+  {200, 50, 200},
+  {200, 200, 50},
+  {200, 200, 200}
+]
+
+src_img =
+  Enum.reduce(0..7, src_img, fn i, img ->
+    Ev.circle(img, {i * 60 + 40, 50}, 30, Enum.at(colors, i), thickness: -1)
+  end)
+
+gray_img = Ev.cvtColor(src_img, Ev.cv_COLOR_BGR2GRAY())
+{ret, img_otsu} = Ev.threshold(gray_img, 127, 255, Ev.cv_THRESH_BINARY() + Ev.cv_THRESH_OTSU())
+IO.inspect(ret)
+
+{_ret, img_triangle} =
+  Ev.threshold(gray_img, 127, 255, Ev.cv_THRESH_BINARY() + Ev.cv_THRESH_TRIANGLE())
+
+[
+  to_img.(src_img),
+  to_img.(gray_img),
+  to_img.(img_otsu),
+  to_img.(img_triangle)
+]
+|> Kino.Layout.grid()
+```
+
+## ch4/4.3/adaptive_thresh
+
+```elixir
+img_bgr = Ev.imread(base <> "drivecam.jpg")
+img_gray = Ev.cvtColor(img_bgr, Ev.cv_COLOR_BGR2GRAY())
+
+[30, 60, 90, 120]
+|> Enum.map(fn thresh ->
+  {_ret, th} = Ev.threshold(img_gray, thresh, 255, Ev.cv_THRESH_BINARY())
+  to_img.(th)
+end)
+|> Kino.Layout.grid(columns: 2)
+```
+
+```elixir
+{_ret, th} = Ev.threshold(img_gray, 0, 255, Ev.cv_THRESH_BINARY() + Ev.cv_THRESH_OTSU())
+th
+```
+
+```elixir
+Ev.adaptiveThreshold(
+  img_gray,
+  255,
+  Ev.cv_ADAPTIVE_THRESH_GAUSSIAN_C(),
+  Ev.cv_THRESH_BINARY(),
+  15,
+  25
+)
+```
+
+## ch4/4.3/adaptive_thresh_imp
+
+```elixir
+img =
+  Ev.imread(base <> "drivecam.jpg")
+  |> Ev.cvtColor(Ev.cv_COLOR_BGR2GRAY())
+
+block_size = 15
+c = 25
+blur_img = Ev.gaussianBlur(img, {block_size, c}, 0)
+
+diff_img = Ev.subtract(blur_img, img)
+
+img_nx = Ev.Mat.to_nx(img) |> Nx.to_flat_list()
+blur_nx = Ev.Mat.to_nx(blur_img) |> Nx.to_flat_list()
+
+Enum.zip_with([blur_nx, img_nx], fn [b, i] ->
+  if b - c > i, do: 0, else: 255
+end)
+|> Nx.tensor(type: :u8)
+|> Nx.reshape(Ev.Mat.shape(img))
+|> Ev.Mat.from_nx_2d()
+```
+
+## ch4/4.3/contours
+
+```elixir
+img_bgr =
+  Ev.imread(base <> "bolts.jpg")
+  |> Ev.resize({500, 375})
+
+{_ret, img_bin} =
+  Ev.cvtColor(img_bgr, Ev.cv_COLOR_BGR2GRAY())
+  |> Ev.threshold(160, 255, Ev.cv_THRESH_BINARY())
+
+{contours, hierarchy} =
+  Ev.findContours(
+    img_bin,
+    Ev.cv_RETR_TREE(),
+    Ev.cv_CHAIN_APPROX_SIMPLE()
+  )
+
+contours =
+  Enum.filter(contours, fn con ->
+    Ev.contourArea(con) > 900
+  end)
+
+result_img = Ev.drawContours(img_bgr, contours, -1, {0, 255, 0}, thickness: 5)
+
+rect_img =
+  Enum.reduce(contours, result_img, fn c, img ->
+    {x, y, w, h} = Ev.boundingRect(c)
+    Ev.rectangle(img, {x, y}, {x + w, y + h}, {0, 0, 255})
+  end)
+
+Kino.Layout.grid([to_img.(img_bgr), to_img.(img_bin), to_img.(result_img), to_img.(rect_img)])
+```
+
+## ch4/4.4/affine
+
+```elixir
+{width, height} = {100, 100}
+
+src_img =
+  Ev.Mat.full({width, height, 3}, 128, :u8)
+  |> Ev.Mat.to_nx()
+  |> Ev.Mat.from_nx_2d()
+  |> Ev.rectangle({10, 10}, {width - 10, height - 10}, {255, 255, 255}, thickness: -1)
+  |> Ev.putText("CV", {30, 60}, Ev.cv_FONT_HERSHEY_SIMPLEX(), 1.0, {0, 0, 255},
+    thickness: 5,
+    lineType: Ev.cv_LINE_4()
+  )
+
+x = 50
+y = -10
+m_shift = Nx.tensor([[1, 0, x], [0, 1, y]], type: :f32) |> Ev.Mat.from_nx()
+sheer_img = Ev.warpAffine(src_img, m_shift, {width, height})
+
+angle = 45
+m_rotate = Ev.getRotationMatrix2D({width / 2, height / 2}, angle, 1.0)
+rotation_img = Ev.warpAffine(src_img, m_rotate, {width, height})
+
+a = 0.2
+b = 0.0
+m_shear = Nx.tensor([[1, a, 0], [b, 1, 0]], type: :f32) |> Ev.Mat.from_nx()
+shear_img = Ev.warpAffine(src_img, m_shear, {width, height})
+
+Kino.Layout.grid(
+  [
+    to_img.(src_img),
+    to_img.(sheer_img),
+    to_img.(rotation_img),
+    to_img.(shear_img)
+  ],
+  columns: 4
+)
+```
+
+## ch4/4.4/flag
+
+```elixir
+{width, height} = {20, 20}
+
+src_img =
+  Ev.Mat.full({width, height, 3}, 125, :u8)
+  |> Ev.Mat.to_nx()
+  |> Ev.Mat.from_nx_2d()
+  |> Ev.rectangle({5, 5}, {14, 14}, {255, 255, 255}, thickness: -1)
+
+angle = 30
+m_rotate = Ev.getRotationMatrix2D({width / 2, height / 2}, angle, 0.6)
+
+flags = [
+  Ev.cv_INTER_NEAREST(),
+  Ev.cv_INTER_LINEAR(),
+  Ev.cv_INTER_CUBIC(),
+  Ev.cv_INTER_AREA(),
+  Ev.cv_INTER_LANCZOS4()
+]
+
+Enum.map(flags, fn flag ->
+  Ev.warpAffine(src_img, m_rotate, {width, height}, flag: flag)
+  |> to_img.()
+end)
+|> Kino.Layout.grid(columns: 5)
+```
+
+## ch4/4.4/moire
+
+```elixir
+# x = Nx.iota({1, 3000},backend: EXLA.Backend) |> Nx.multiply(16 / 3000)
+# y = Nx.iota({1, 3000},backend: EXLA.Backend) |> Nx.multiply(16 / 3000)
+
+# xx = Nx.tile(x,[3000,1])
+# yy = Nx.tile(y,[3000, 1]) |> Nx.transpose()
+
+# z = Nx.add(Nx.power(xx,2), Nx.power(yy,2)) |> Nx.sin()
+
+# plt.contoursfのvegaliteでの書き方がわからないので skip
+```
+
+## ch4/4.4/perspective
+
+```elixir
+img = Ev.imread(base <> "drivecam.jpg")
+
+src_pts =
+  Nx.tensor([[670, 680], [1130, 680], [130, 800], [1600, 800]], type: :f32)
+  |> Ev.Mat.from_nx()
+
+dst_pts =
+  Nx.tensor([[0, 0], [500, 0], [0, 500], [500, 500]], type: :f32)
+  |> Ev.Mat.from_nx()
+
+m = Ev.getPerspectiveTransform(src_pts, dst_pts)
+
+dst_img = Ev.warpPerspective(img, m, {500, 500})
+
+mark =
+  [{670, 680}, {1130, 680}, {130, 800}, {1600, 800}]
+  |> Enum.reduce(img, fn pos, img ->
+    Ev.drawMarker(
+      img,
+      pos,
+      {0, 0, 255},
+      markerType: Ev.cv_MARKER_CROSS(),
+      markerSize: 50,
+      thickness: 10
+    )
+  end)
+
+Kino.Layout.grid([to_img.(mark), to_img.(dst_img)])
+```
