@@ -1,0 +1,78 @@
+# opencv_dl_ch5
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.4.0"},
+  {:evision, "~> 0.1.16"},
+  {:kino, "~> 0.7.0"},
+  {:kino_vega_lite, "~> 0.1.6"},
+  {:exla, "~> 0.4.0"}
+])
+```
+
+## setup
+
+```elixir
+alias Evision, as: Ev
+base = "/Users/shou/livebook_samples/images/"
+
+to_img = fn mat ->
+  Ev.imencode(".png", mat) |> Kino.Image.new(:png)
+end
+```
+
+## ch5/5.1/load_movie
+
+```elixir
+cap = Ev.VideoCapture.videoCapture(base <> "test.mp4")
+
+Kino.animate(10, fn _i ->
+  mat = Ev.VideoCapture.read(cap)
+
+  if mat do
+    to_img.(mat)
+  else
+    Ev.VideoCapture.release(cap)
+    :halt
+  end
+end)
+```
+
+## ch5/5.1/movie
+
+```elixir
+cap = Ev.VideoCapture.videoCapture(base <> "movie.mp4")
+total_frames = Ev.VideoCapture.get(cap, Ev.cv_CAP_PROP_FRAME_COUNT())
+
+Kino.animate(10, fn _i ->
+  mat = Ev.VideoCapture.read(cap)
+  current_frame = Ev.VideoCapture.get(cap, Ev.cv_CAP_PROP_POS_FRAMES())
+
+  cond do
+    current_frame > total_frames ->
+      Ev.VideoCapture.release(cap)
+      :halt
+
+    mat == false ->
+      Ev.VideoCapture.release(cap)
+      :halt
+
+    true ->
+      to_img.(mat)
+  end
+end)
+```
+
+## ch5/5.2/writer
+
+```elixir
+cap = Ev.VideoCapture.videoCapture(base <> "movie.mp4")
+
+width = Ev.VideoCapture.get(cap, Ev.cv_CAP_PROP_FRAME_WIDTH())
+height = Ev.VideoCapture.get(cap, Ev.cv_CAP_PROP_FRAME_HEIGHT())
+fps = Ev.VideoCapture.get(cap, Ev.cv_CAP_PROP_FPS())
+
+fourcc = Evision.VideoWriter.fourcc(109, 112, 52, 118)
+# writer = Ev.VideoWriter.videoWriter("opencv_out.mp4", fourcc, fps, {width, height})
+# videoWriterが動かないのでskip
+```
