@@ -1,0 +1,44 @@
+# opencv_dnn_ch6
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.4.0"},
+  {:evision, "~> 0.1.16"},
+  {:kino, "~> 0.7.0"},
+  {:exla, "~> 0.4.0"}
+])
+```
+
+## setup
+
+```elixir
+alias Evision, as: Ev
+base = "/Users/shou/livebook_samples/images/"
+
+to_img = fn mat ->
+  Ev.imencode(".png", mat)
+  |> Kino.Image.new(:png)
+end
+```
+
+## ch6/6.3/conv
+
+```elixir
+src_img = Ev.imread(base <> "veggie.png", flags: Ev.cv_IMREAD_GRAYSCALE())
+
+filter_vertical = Nx.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], type: :f32)
+
+dst_img_v =
+  Ev.filter2D(src_img, -1, filter_vertical)
+  |> Ev.convertScaleAbs()
+  |> to_img.()
+
+filter_horizontal = Nx.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], type: :f32)
+
+dst_img_h =
+  Ev.filter2D(src_img, -1, filter_horizontal)
+  |> Ev.convertScaleAbs()
+  |> to_img.()
+
+Kino.Layout.grid([to_img.(src_img), dst_img_v, dst_img_h], columns: 3)
+```
