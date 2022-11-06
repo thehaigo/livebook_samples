@@ -73,6 +73,6 @@ height = Ev.VideoCapture.get(cap, Ev.cv_CAP_PROP_FRAME_HEIGHT())
 fps = Ev.VideoCapture.get(cap, Ev.cv_CAP_PROP_FPS())
 
 fourcc = Evision.VideoWriter.fourcc(109, 112, 52, 118)
-# writer = Ev.VideoWriter.videoWriter("opencv_out.mp4", fourcc, fps, {width, height})
+# writer = Ev.VideoWriter.videoWriter("output_%05d.jpg", 0, fps, {width, height})
 # videoWriterが動かないのでskip
 ```
