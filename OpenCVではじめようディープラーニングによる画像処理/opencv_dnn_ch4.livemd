@@ -2,11 +2,9 @@
 
 ```elixir
 Mix.install([
-  {:nx, "~> 0.4.0"},
-  {:evision, "~> 0.1.16"},
-  {:kino, "~> 0.7.0"},
-  {:kino_vega_lite, "~> 0.1.6"},
-  {:exla, "~> 0.4.0"}
+  {:exla, "~> 0.4.0"},
+  {:evision, "~> 0.1.19"},
+  {:kino, "~> 0.7.0"}
 ])
 ```
 
@@ -46,7 +44,6 @@ Ev.HighGui.imshow("img", img)
 img = Ev.imread(test)
 
 Ev.imencode(".png", img)
-|> IO.iodata_to_binary()
 |> Kino.Image.new(:png)
 ```
 
@@ -156,8 +153,6 @@ src_img =
   Ev.Mat.full({100, 500, 3}, 255, :u8)
   |> Ev.Mat.to_nx()
   |> Ev.Mat.from_nx_2d()
-
-src_img = Nx.tensor(Enum.map(0..(100 * 500 * 3), 255), type: :u8)
 
 colors = [
   {50, 50, 50},

@@ -3,9 +3,8 @@
 ```elixir
 Mix.install(
   [
-    {:nx, "~> 0.3.0"},
-    {:exla, "~> 0.3.0"},
-    {:evision, "~> 0.1.14"},
+    {:evision, "~> 0.1.19"},
+    {:exla, "~> 0.4.0"},
     {:kino, "~> 0.7.0"}
   ],
   config: [
@@ -20,7 +19,7 @@ Mix.install(
 
 ```elixir
 alias Evision, as: Ev
-path = "/Users/shou/phoenix/livebook_samples/images/yorkie.png"
+path = "/Users/shou/livebook_samples/images/yorkie.png"
 ```
 
 ```elixir
@@ -29,15 +28,11 @@ height = 100
 value = 128.0
 
 Ev.Mat.zeros({height, width}, :u8)
-|> then(&Ev.imencode(".png", &1))
-|> Kino.Image.new(:png)
 ```
 
 ```elixir
 Nx.broadcast(value, {height, width})
 |> Ev.Mat.from_nx()
-|> then(&Ev.imencode(".png", &1))
-|> Kino.Image.new(:png)
 ```
 
 ## ch3/3.1/blank_color_image
@@ -51,16 +46,12 @@ value = [0.0, 0.0, 255.0]
 
 ```elixir
 Ev.Mat.zeros({height, width}, :u8)
-|> then(&Evision.imencode(".png", &1))
-|> Kino.Image.new(:png)
 ```
 
 ```elixir
 Nx.tensor(value)
 |> Nx.broadcast({height, width, channel})
 |> Evision.Mat.from_nx_2d()
-|> then(&Evision.imencode(".png", &1))
-|> Kino.Image.new(:png)
 ```
 
 ## ch3/3.1/read_pixel_value
@@ -210,8 +201,8 @@ dst = Ev.Mat.bitwise_or(src1, src2)
 ## ch3/3.2/addWeighted
 
 ```elixir
-aloe_l = "/Users/shou/phoenix/livebook_samples/images/aloeL.png"
-aloe_r = "/Users/shou/phoenix/livebook_samples/images/aloeR.png"
+aloe_l = "/Users/shou/livebook_samples/images/aloeL.png"
+aloe_r = "/Users/shou/livebook_samples/images/aloeR.png"
 ```
 
 ```elixir
@@ -238,10 +229,9 @@ diff = Ev.absdiff(img1, img2)
 
 ```elixir
 org_img = Ev.imread(path)
-shape = Ev.Mat.shape(org_img) |> IO.inspect()
-mask = Ev.Mat.full(shape, 255, :u8)
-# 不具合で動かず skip
-# cv_copy_img = Ev.copyTo(org_img, mask)
+{w, h, ch} = Ev.Mat.shape(org_img)
+mask = Ev.Mat.full({w, h}, 255, :u8)
+cv_copy_img = Ev.copyTo(org_img, mask)
 ```
 
 ## ch3/3.2/flip_image
@@ -264,7 +254,7 @@ rotated = Ev.rotate(src, 0)
 
 ```elixir
 img = Nx.tensor([[0, 1, 2, 3, 4, 5, 6]], type: :u8) |> Ev.Mat.from_nx()
-clip1 = Ev.Mat.clip(img, 6, 6)
+clip1 = Ev.Mat.clip(img, 0, 5)
 # 挙動がおかしい
 ```
 
